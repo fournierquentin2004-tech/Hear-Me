@@ -1,0 +1,19 @@
+{
+  "name": "hear-me",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start --workspace=apps/mobile",
+    "backoffice": "npm run dev --workspace=apps/backoffice",
+    "build:mobile:ios": "npm run build:ios --workspace=apps/mobile",
+    "build:mobile:android": "npm run build:android --workspace=apps/mobile"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "eslint": "^9.9.0"
+  }
+}
