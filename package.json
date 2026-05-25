@@ -15,5 +15,8 @@
   "devDependencies": {
     "prettier": "^3.3.3",
     "eslint": "^9.9.0"
+  },
+  "dependencies": {
+    "expo-updates": "~56.0.16"
   }
 }

@@ -45,7 +45,6 @@
     },
     "plugins": [
       "expo-router",
-      "expo-dev-client",
       "expo-secure-store",
       [
         "@stripe/stripe-react-native",
@@ -101,6 +100,10 @@
         "projectId": "62446bb0-25d1-4dc7-8d25-62090e10aad0"
       }
     },
-    "owner": "fournierquentin"
+    "owner": "fournierquentin",
+    "runtimeVersion": "exposdk:56.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/62446bb0-25d1-4dc7-8d25-62090e10aad0"
+    }
   }
 }
