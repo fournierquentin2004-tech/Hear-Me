@@ -170,6 +170,9 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: Colors.gray[200],
     borderRadius: BorderRadius.xl, paddingHorizontal: Spacing.base,
     height: 64, backgroundColor: Colors.gray[50], gap: Spacing.sm,
+    // Empêche le débordement sur web
+    maxWidth: '100%' as any,
+    alignSelf: 'stretch',
   },
   inputWrapperValid: { borderColor: Colors.love.primary, backgroundColor: Colors.love.light, ...Shadow.sm },
   prefixBox: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
@@ -180,7 +183,7 @@ const styles = StyleSheet.create({
   frText: { fontSize: 11, fontWeight: '800', color: Colors.white, letterSpacing: 0.5 },
   prefixText: { fontSize: Typography.base, fontWeight: '700', color: Colors.black },
   divider: { width: 1, height: 28, backgroundColor: Colors.gray[200] },
-  input: { flex: 1, fontSize: Typography.lg, fontWeight: '600', color: Colors.black, letterSpacing: 2 },
+  input: { flex: 1, fontSize: Typography.lg, fontWeight: '600', color: Colors.black, letterSpacing: 2, outlineStyle: 'none' as any },
   checkmark: { fontSize: 20, color: Colors.success, fontWeight: '700' },
   hint: { fontSize: Typography.xs, color: Colors.gray[400], textAlign: 'center' },
   footer: {},

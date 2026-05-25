@@ -144,6 +144,7 @@ export const Shadow = {
     shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
+    ...Platform.select({ web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.08)' } as any }),
   },
   md: {
     shadowColor: '#000',
@@ -151,6 +152,7 @@ export const Shadow = {
     shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 5,
+    ...Platform.select({ web: { boxShadow: '0px 4px 12px rgba(0,0,0,0.12)' } as any }),
   },
   lg: {
     shadowColor: '#000',
@@ -158,8 +160,9 @@ export const Shadow = {
     shadowOpacity: 0.15,
     shadowRadius: 20,
     elevation: 10,
+    ...Platform.select({ web: { boxShadow: '0px 8px 20px rgba(0,0,0,0.15)' } as any }),
   },
-} as const
+}
 
 // Polices
 export const Fonts = {

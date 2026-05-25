@@ -14,7 +14,6 @@ export const MUSIC_STYLES = [
   'Reggaeton',
   'Indie',
   'Metal',
-  'Jazz',
   'K-Pop',
 ] as const
 
