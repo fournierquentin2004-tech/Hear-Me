@@ -471,17 +471,17 @@ const styles = StyleSheet.create({
   styleGrid: {
     flex: 1,
     paddingHorizontal: Spacing.base,
-    paddingTop: Spacing.base,
-    paddingBottom: Spacing.base,
-    gap: 10,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
+    gap: 8,
     justifyContent: 'center',
   },
   styleRow: {
     flex: 1,
     flexDirection: 'row',
-    gap: 10,
-    minHeight: 64,
-    maxHeight: 88,
+    gap: 8,
+    minHeight: 44,
+    maxHeight: 60,
   },
   chip: {
     flex: 1,
