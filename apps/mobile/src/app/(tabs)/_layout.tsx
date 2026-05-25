@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 import { Tabs, useRouter } from 'expo-router'
-import { Platform } from 'react-native'
+import { Platform, View, StyleSheet } from 'react-native'
 import { useAuthStore } from '@/stores/auth.store'
 import { Colors } from '@/constants/theme'
-import { DiscoverIcon, MatchesIcon, EventsIcon, ProfileIcon } from '@/components/ui/tab-icons'
+import { EventsIcon, LikesIcon, DiscoverIcon, MatchesIcon, ProfileIcon } from '@/components/ui/tab-icons'
 
 export default function TabsLayout() {
   const { status } = useAuthStore()
@@ -28,24 +28,12 @@ export default function TabsLayout() {
         tabBarActiveTintColor: Colors.love.primary,
         tabBarInactiveTintColor: Colors.gray[400],
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '500',
+          fontSize: 10,
+          fontWeight: '600',
         },
       }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Découverte',
-          tabBarIcon: ({ color, size }) => <DiscoverIcon color={color as string} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="matches"
-        options={{
-          title: 'Matches',
-          tabBarIcon: ({ color, size }) => <MatchesIcon color={color as string} size={size} />,
-        }}
-      />
+
+      {/* 1 — Événements */}
       <Tabs.Screen
         name="events"
         options={{
@@ -53,6 +41,46 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <EventsIcon color={color as string} size={size} />,
         }}
       />
+
+      {/* 2 — Likes reçus */}
+      <Tabs.Screen
+        name="likes"
+        options={{
+          title: 'Likes',
+          tabBarIcon: ({ color, size }) => <LikesIcon color={color as string} size={size} />,
+        }}
+      />
+
+      {/* 3 — Découverte (centre) */}
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Découverte',
+          tabBarIcon: ({ focused, size }) => (
+            <View style={[styles.discoverWrap, focused && styles.discoverWrapActive]}>
+              <DiscoverIcon color={focused ? '#fff' : Colors.gray[400]} size={size - 2} />
+            </View>
+          ),
+          tabBarActiveTintColor: Colors.love.primary,
+          tabBarStyle: {
+            backgroundColor: '#fff',
+            borderTopColor: Colors.gray[200],
+            height: Platform.select({ ios: 84, android: 64 }),
+            paddingBottom: Platform.select({ ios: 28, android: 8 }),
+          },
+        }}
+      />
+
+      {/* 4 — Matchs */}
+      <Tabs.Screen
+        name="matches"
+        options={{
+          title: 'Matchs',
+          tabBarIcon: ({ color, size }) => <MatchesIcon color={color as string} size={size} />,
+        }}
+      />
+
+      {/* 5 — Profil */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -63,3 +91,27 @@ export default function TabsLayout() {
     </Tabs>
   )
 }
+
+const styles = StyleSheet.create({
+  discoverWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.gray[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Platform.select({ ios: 6, android: 0 }),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  discoverWrapActive: {
+    backgroundColor: Colors.love.primary,
+    shadowColor: Colors.love.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+})

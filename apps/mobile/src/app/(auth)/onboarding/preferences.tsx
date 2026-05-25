@@ -2,35 +2,37 @@ import { useState } from 'react'
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Colors, Typography, Spacing, BorderRadius } from '@/constants/theme'
+import { LinearGradient } from 'expo-linear-gradient'
+import { Colors, Typography, Spacing, BorderRadius, Shadow } from '@/constants/theme'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { Gender } from '@/types/user.types'
 import { OnboardingProgress } from '@/components/ui/onboarding-progress'
+import { RangeSlider } from '@/components/ui/range-slider'
 
 const GENDERS: { key: Gender; label: string }[] = [
-  { key: 'homme', label: 'Hommes' },
-  { key: 'femme', label: 'Femmes' },
-  { key: 'non-binaire', label: 'Non-binaires' },
-  { key: 'trans', label: 'Trans' },
-  { key: 'iel', label: 'Iel' },
-  { key: 'autre', label: 'Autres' },
+  { key: 'homme',       label: 'Hommes'    },
+  { key: 'femme',       label: 'Femmes'    },
+  { key: 'non-binaire', label: 'Non-bin.'  },
+  { key: 'trans',       label: 'Trans'     },
+  { key: 'iel',         label: 'Iel'       },
+  { key: 'autre',       label: 'Autres'    },
 ]
-
-const DISTANCES = [10, 20, 30, 50, 75, 100, 150, 200]
 
 export default function OnboardingPreferencesScreen() {
   const router = useRouter()
   const { connectionType, setPreferences } = useOnboardingStore()
 
   const [loveGender, setLoveGender] = useState<Gender[]>([])
-  const [loveAgeMin, setLoveAgeMin] = useState(18)
+  const [loveAgeMin, setLoveAgeMin] = useState(20)
   const [loveAgeMax, setLoveAgeMax] = useState(35)
-  const [loveDist, setLoveDist] = useState(50)
+  const [loveDistMin, setLoveDistMin] = useState(0)
+  const [loveDistMax, setLoveDistMax] = useState(50)
 
   const [friendGender, setFriendGender] = useState<Gender[]>([])
-  const [friendAgeMin, setFriendAgeMin] = useState(18)
+  const [friendAgeMin, setFriendAgeMin] = useState(20)
   const [friendAgeMax, setFriendAgeMax] = useState(35)
-  const [friendDist, setFriendDist] = useState(50)
+  const [friendDistMin, setFriendDistMin] = useState(0)
+  const [friendDistMax, setFriendDistMax] = useState(50)
 
   const showLove = connectionType === 'amour' || connectionType === 'les deux'
   const showFriend = connectionType === 'amitié' || connectionType === 'les deux'
@@ -44,141 +46,220 @@ export default function OnboardingPreferencesScreen() {
   const handleNext = () => {
     if (!isValid) return
     setPreferences({
-      loveGender, loveAgeMin, loveAgeMax, loveMaxDistanceKm: loveDist,
-      friendshipGender: friendGender, friendshipAgeMin: friendAgeMin, friendshipAgeMax: friendAgeMax, friendshipMaxDistanceKm: friendDist,
+      loveGender,
+      loveAgeMin,
+      loveAgeMax,
+      loveMaxDistanceKm: loveDistMax,
+      friendshipGender: friendGender,
+      friendshipAgeMin: friendAgeMin,
+      friendshipAgeMax: friendAgeMax,
+      friendshipMaxDistanceKm: friendDistMax,
     })
-    router.push('/(auth)/onboarding/photos')
+    router.push('/(auth)/onboarding/photos' as any)
   }
 
-  const GenderSelector = ({ selected, onToggle, label }: { selected: Gender[]; onToggle: (g: Gender) => void; label: string }) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>{label}</Text>
-      <View style={styles.chips}>
-        {GENDERS.map((g) => (
-          <Pressable
-            key={g.key}
-            style={[styles.chip, selected.includes(g.key) && styles.chipActive]}
-            onPress={() => onToggle(g.key)}>
-            <Text style={[styles.chipText, selected.includes(g.key) && styles.chipTextActive]}>{g.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  )
-
-  const AgeSelector = ({ min, max, setMin, setMax }: { min: number; max: number; setMin: (v: number) => void; setMax: (v: number) => void }) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>Tranche d'âge : {min}–{max} ans</Text>
-      <View style={styles.ageRow}>
-        <View style={styles.ageGroup}>
-          <Text style={styles.ageLabel}>Min</Text>
-          <View style={styles.ageBtns}>
-            <Pressable style={styles.ageBtn} onPress={() => min > 18 && setMin(min - 1)}>
-              <Text style={styles.ageBtnText}>−</Text>
-            </Pressable>
-            <Text style={styles.ageValue}>{min}</Text>
-            <Pressable style={styles.ageBtn} onPress={() => min < max - 1 && setMin(min + 1)}>
-              <Text style={styles.ageBtnText}>+</Text>
-            </Pressable>
-          </View>
-        </View>
-        <View style={styles.ageSep} />
-        <View style={styles.ageGroup}>
-          <Text style={styles.ageLabel}>Max</Text>
-          <View style={styles.ageBtns}>
-            <Pressable style={styles.ageBtn} onPress={() => max > min + 1 && setMax(max - 1)}>
-              <Text style={styles.ageBtnText}>−</Text>
-            </Pressable>
-            <Text style={styles.ageValue}>{max}</Text>
-            <Pressable style={styles.ageBtn} onPress={() => max < 80 && setMax(max + 1)}>
-              <Text style={styles.ageBtnText}>+</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </View>
-  )
-
-  const DistanceSelector = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>Distance max : {value} km</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.distRow}>
-          {DISTANCES.map((d) => (
-            <Pressable key={d} style={[styles.distChip, value === d && styles.distChipActive]} onPress={() => onChange(d)}>
-              <Text style={[styles.distText, value === d && styles.distTextActive]}>{d} km</Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  )
+  const loveColors: [string, string] = ['#FF6B9D', '#FF4757']
+  const friendColors: [string, string] = ['#5C7CFA', '#7950F2']
 
   return (
-    <SafeAreaView style={styles.container}>
-      <OnboardingProgress step={4} total={5} />
+    <View style={styles.container}>
+      {/* Header */}
+      <LinearGradient
+        colors={
+          showLove && showFriend
+            ? ['#FF6B9D', '#7950F2']
+            : showLove
+            ? loveColors
+            : friendColors
+        }
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}>
+        <SafeAreaView>
+          <OnboardingProgress step={4} total={5} light />
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Tes préférences</Text>
+            <Text style={styles.headerSub}>Tu peux tout modifier depuis ton profil</Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
 
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Tes préférences</Text>
-        <Text style={styles.subtitle}>Tu peux tout modifier depuis ton profil ensuite</Text>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
+        {/* Bloc Amour */}
         {showLove && (
           <View style={styles.block}>
-            <Text style={styles.blockTitle}>❤️ Pour l'amour</Text>
-            <GenderSelector selected={loveGender} onToggle={(g) => toggleGender(loveGender, setLoveGender, g)} label="Je rencontre" />
-            <AgeSelector min={loveAgeMin} max={loveAgeMax} setMin={setLoveAgeMin} setMax={setLoveAgeMax} />
-            <DistanceSelector value={loveDist} onChange={setLoveDist} />
+            <LinearGradient colors={['#FFF0F5', '#FFE4EF']} style={styles.blockHeader}>
+              <View style={[styles.blockDot, { backgroundColor: Colors.love.primary }]} />
+              <Text style={[styles.blockTitle, { color: Colors.love.secondary }]}>Pour l'amour</Text>
+            </LinearGradient>
+
+            {/* Genre */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Je rencontre</Text>
+              <View style={styles.genderChips}>
+                {GENDERS.map((g) => (
+                  <Pressable
+                    key={g.key}
+                    style={[styles.chip, loveGender.includes(g.key) && styles.chipLoveActive]}
+                    onPress={() => toggleGender(loveGender, setLoveGender, g.key)}>
+                    <Text style={[styles.chipText, loveGender.includes(g.key) && styles.chipTextLoveActive]}>
+                      {g.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Âge */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Tranche d'âge</Text>
+              <RangeSlider
+                min={18} max={80}
+                low={loveAgeMin} high={loveAgeMax}
+                step={1} unit=" ans"
+                color={Colors.love.primary}
+                onValueChange={(lo, hi) => { setLoveAgeMin(lo); setLoveAgeMax(hi) }}
+              />
+            </View>
+
+            {/* Distance */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Distance maximale</Text>
+              <RangeSlider
+                min={0} max={200}
+                low={loveDistMin} high={loveDistMax}
+                step={5} unit=" km"
+                color={Colors.love.primary}
+                onValueChange={(lo, hi) => { setLoveDistMin(lo); setLoveDistMax(hi) }}
+              />
+            </View>
           </View>
         )}
 
+        {/* Bloc Amitié */}
         {showFriend && (
           <View style={styles.block}>
-            <Text style={styles.blockTitle}>🤝 Pour l'amitié</Text>
-            <GenderSelector selected={friendGender} onToggle={(g) => toggleGender(friendGender, setFriendGender, g)} label="Je rencontre" />
-            <AgeSelector min={friendAgeMin} max={friendAgeMax} setMin={setFriendAgeMin} setMax={setFriendAgeMax} />
-            <DistanceSelector value={friendDist} onChange={setFriendDist} />
+            <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.blockHeader}>
+              <View style={[styles.blockDot, { backgroundColor: Colors.friendship.primary }]} />
+              <Text style={[styles.blockTitle, { color: Colors.friendship.secondary }]}>Pour l'amitié</Text>
+            </LinearGradient>
+
+            {/* Genre */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Je rencontre</Text>
+              <View style={styles.genderChips}>
+                {GENDERS.map((g) => (
+                  <Pressable
+                    key={g.key}
+                    style={[styles.chip, friendGender.includes(g.key) && styles.chipFriendActive]}
+                    onPress={() => toggleGender(friendGender, setFriendGender, g.key)}>
+                    <Text style={[styles.chipText, friendGender.includes(g.key) && styles.chipTextFriendActive]}>
+                      {g.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Âge */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Tranche d'âge</Text>
+              <RangeSlider
+                min={18} max={80}
+                low={friendAgeMin} high={friendAgeMax}
+                step={1} unit=" ans"
+                color={Colors.friendship.primary}
+                onValueChange={(lo, hi) => { setFriendAgeMin(lo); setFriendAgeMax(hi) }}
+              />
+            </View>
+
+            {/* Distance */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Distance maximale</Text>
+              <RangeSlider
+                min={0} max={200}
+                low={friendDistMin} high={friendDistMax}
+                step={5} unit=" km"
+                color={Colors.friendship.primary}
+                onValueChange={(lo, hi) => { setFriendDistMin(lo); setFriendDistMax(hi) }}
+              />
+            </View>
           </View>
         )}
       </ScrollView>
 
+      {/* Footer */}
       <View style={styles.footer}>
-        <Pressable style={[styles.btn, !isValid && styles.btnDisabled]} onPress={handleNext} disabled={!isValid}>
-          <Text style={styles.btnText}>Continuer →</Text>
+        <Pressable
+          style={[styles.btn, !isValid && styles.btnDisabled]}
+          onPress={handleNext}
+          disabled={!isValid}>
+          {isValid ? (
+            <LinearGradient
+              colors={showLove && showFriend ? ['#FF6B9D', '#7950F2'] : showLove ? loveColors : friendColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.btnGradient}>
+              <Text style={styles.btnText}>Continuer →</Text>
+            </LinearGradient>
+          ) : (
+            <View style={[styles.btnGradient, { backgroundColor: Colors.gray[200] }]}>
+              <Text style={[styles.btnText, { color: Colors.gray[400] }]}>Sélectionne au moins un genre</Text>
+            </View>
+          )}
         </Pressable>
       </View>
-    </SafeAreaView>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.white },
-  scroll: { flex: 1, paddingHorizontal: Spacing.base },
-  title: { fontSize: Typography['2xl'], fontWeight: '800', color: Colors.black, marginTop: Spacing.base, marginBottom: Spacing.xs },
-  subtitle: { fontSize: Typography.sm, color: Colors.gray[500], marginBottom: Spacing.lg },
-  block: { marginBottom: Spacing.xl, backgroundColor: Colors.gray[50], borderRadius: BorderRadius.lg, padding: Spacing.base, gap: Spacing.base },
-  blockTitle: { fontSize: Typography.base, fontWeight: '700', color: Colors.black },
-  section: { gap: Spacing.sm },
-  sectionLabel: { fontSize: Typography.sm, fontWeight: '600', color: Colors.gray[700] },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
-  chip: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, borderWidth: 1.5, borderColor: Colors.gray[200], backgroundColor: Colors.white },
-  chipActive: { borderColor: Colors.love.primary, backgroundColor: Colors.love.light },
-  chipText: { fontSize: Typography.sm, color: Colors.gray[600] },
-  chipTextActive: { color: Colors.love.secondary, fontWeight: '600' },
-  ageRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.base },
-  ageGroup: { flex: 1, alignItems: 'center', gap: Spacing.xs },
-  ageLabel: { fontSize: 12, color: Colors.gray[500] },
-  ageBtns: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  ageBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: Colors.love.light, alignItems: 'center', justifyContent: 'center' },
-  ageBtnText: { fontSize: 20, color: Colors.love.primary, fontWeight: '700', lineHeight: 24 },
-  ageValue: { fontSize: Typography.lg, fontWeight: '700', color: Colors.black, minWidth: 36, textAlign: 'center' },
-  ageSep: { width: 1, height: 40, backgroundColor: Colors.gray[200] },
-  distRow: { flexDirection: 'row', gap: Spacing.sm, paddingVertical: Spacing.xs },
-  distChip: { paddingHorizontal: Spacing.base, paddingVertical: Spacing.xs, borderRadius: BorderRadius.full, borderWidth: 1.5, borderColor: Colors.gray[200], backgroundColor: Colors.white },
-  distChipActive: { borderColor: Colors.love.primary, backgroundColor: Colors.love.light },
-  distText: { fontSize: Typography.sm, color: Colors.gray[500] },
-  distTextActive: { color: Colors.love.secondary, fontWeight: '600' },
-  footer: { paddingHorizontal: Spacing.base, paddingBottom: Spacing.lg },
-  btn: { backgroundColor: Colors.love.primary, borderRadius: BorderRadius.full, paddingVertical: Spacing.base, alignItems: 'center' },
-  btnDisabled: { backgroundColor: Colors.gray[200] },
-  btnText: { fontSize: Typography.md, fontWeight: '700', color: Colors.white },
+  header: { paddingBottom: Spacing['2xl'] },
+  headerContent: { alignItems: 'center', paddingHorizontal: Spacing.base, gap: Spacing.xs, paddingTop: Spacing.sm, paddingBottom: Spacing.sm },
+  headerTitle: { fontSize: Typography.xl, fontWeight: '800', color: Colors.white },
+  headerSub: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.85)', textAlign: 'center' },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: Spacing.base, paddingTop: Spacing.lg, paddingBottom: Spacing.xl, gap: Spacing.lg },
+  block: {
+    borderRadius: BorderRadius.xl,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: Colors.gray[100],
+    ...Shadow.sm,
+  },
+  blockHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.sm,
+  },
+  blockDot: { width: 12, height: 12, borderRadius: 6 },
+  blockTitle: { fontSize: Typography.base, fontWeight: '800' },
+  section: { paddingHorizontal: Spacing.base, paddingVertical: Spacing.base, gap: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.gray[100] },
+  sectionLabel: { fontSize: Typography.sm, fontWeight: '700', color: Colors.gray[600] },
+  genderChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1.5,
+    borderColor: Colors.gray[200],
+    backgroundColor: Colors.white,
+  },
+  chipLoveActive: { borderColor: Colors.love.primary, backgroundColor: Colors.love.light },
+  chipFriendActive: { borderColor: Colors.friendship.primary, backgroundColor: '#EEF2FF' },
+  chipText: { fontSize: 12, color: Colors.gray[600], fontWeight: '600' },
+  chipTextLoveActive: { color: Colors.love.secondary, fontWeight: '700' },
+  chipTextFriendActive: { color: Colors.friendship.secondary, fontWeight: '700' },
+  footer: { paddingHorizontal: Spacing.base, paddingBottom: Spacing.xl, paddingTop: Spacing.sm },
+  btn: { borderRadius: BorderRadius.full, overflow: 'hidden', ...Shadow.md },
+  btnGradient: { paddingVertical: 18, alignItems: 'center' },
+  btnDisabled: {},
+  btnText: { fontSize: Typography.md, fontWeight: '800', color: Colors.white, letterSpacing: 0.3 },
 })

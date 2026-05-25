@@ -10,13 +10,11 @@ import { useAuthStore } from '@/stores/auth.store'
 
 export default function RootLayout() {
   const setStatus = useAuthStore((s) => s.setStatus)
-
   useEffect(() => {
-    // Vérifie la session Supabase au démarrage
-    // Pour l'instant on simule : pas de session = non connecté
+    // Vérifie la session Supabase au démarrage (placeholder : pas de session)
     const timer = setTimeout(() => {
       setStatus('unauthenticated')
-    }, 500)
+    }, 300)
     return () => clearTimeout(timer)
   }, [])
 
