@@ -127,7 +127,15 @@ export default function OnboardingMusicScreen() {
     }
 
     // ── Musiques : top 5 par rank, cap par style + cap par artiste ──
-    const maxPerStyle = Math.ceil(5 / uniqueStyles.length)   // 2 styles → 3 max/style
+    // Le cap se calcule sur le nombre de SOURCES UNIQUES (pas de styles) :
+    // Rap + Hip-Hop partagent le même genre ID → 1 source → cap 5
+    // Pop + Rap → 2 sources différentes → cap 3
+    const sourceKey = (style: string) =>
+      STYLE_TO_GENRE_ID[style] != null
+        ? `genre:${STYLE_TO_GENRE_ID[style]}`
+        : `kw:${STYLE_TO_SEARCH_KEYWORD[style] ?? style}`
+    const uniqueSources   = new Set(uniqueStyles.map(sourceKey)).size
+    const maxPerStyle     = Math.ceil(5 / uniqueSources)
     const seenS       = new Set<number>()
     const artistHits  = new Map<number, number>()
     const styleHits   = new Map<string,  number>()
