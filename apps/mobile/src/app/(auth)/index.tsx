@@ -3,20 +3,22 @@ import { View, Text, StyleSheet, Pressable, Animated, Platform } from 'react-nat
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Colors, Typography, Spacing, BorderRadius, Shadow } from '@/constants/theme'
+import { Colors, Typography, Spacing, BorderRadius, Shadow, nativeDriver } from '@/constants/theme'
 import { HearMeLogo } from '@/components/ui/logo'
+import { useAuthStore } from '@/stores/auth.store'
 
 export default function WelcomeScreen() {
-  const router = useRouter()
+  const router  = useRouter()
+  const setMode = useAuthStore((s) => s.setMode)
   const logoAnim  = useRef(new Animated.Value(0)).current
   const titleAnim = useRef(new Animated.Value(0)).current
   const btnAnim   = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     Animated.stagger(140, [
-      Animated.spring(logoAnim,  { toValue: 1, useNativeDriver: true, damping: 14 }),
-      Animated.spring(titleAnim, { toValue: 1, useNativeDriver: true, damping: 15 }),
-      Animated.spring(btnAnim,   { toValue: 1, useNativeDriver: true, damping: 15 }),
+      Animated.spring(logoAnim,  { toValue: 1, useNativeDriver: nativeDriver, damping: 14 }),
+      Animated.spring(titleAnim, { toValue: 1, useNativeDriver: nativeDriver, damping: 15 }),
+      Animated.spring(btnAnim,   { toValue: 1, useNativeDriver: nativeDriver, damping: 15 }),
     ]).start()
   }, [])
 
@@ -79,13 +81,13 @@ export default function WelcomeScreen() {
           ]}>
           <Pressable
             style={({ pressed }) => [styles.btnPrimary, pressed && styles.pressed]}
-            onPress={() => router.push('/(auth)/phone' as any)}>
+            onPress={() => { setMode('register'); router.push('/(auth)/phone' as any) }}>
             <Text style={styles.btnPrimaryText}>Créer un compte</Text>
           </Pressable>
 
           <Pressable
             style={({ pressed }) => [styles.btnSecondary, pressed && styles.pressed]}
-            onPress={() => router.push('/(auth)/phone' as any)}>
+            onPress={() => { setMode('login'); router.push('/(auth)/phone' as any) }}>
             <Text style={styles.btnSecondaryText}>J'ai déjà un compte</Text>
           </Pressable>
 

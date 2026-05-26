@@ -137,32 +137,25 @@ export const BorderRadius = {
   full: 9999,
 } as const
 
+// Sur web : boxShadow uniquement (les props shadow* causent des warnings)
+// Sur native : props shadow* uniquement
 export const Shadow = {
-  sm: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-    ...Platform.select({ web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.08)' } as any }),
-  },
-  md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 5,
-    ...Platform.select({ web: { boxShadow: '0px 4px 12px rgba(0,0,0,0.12)' } as any }),
-  },
-  lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-    ...Platform.select({ web: { boxShadow: '0px 8px 20px rgba(0,0,0,0.15)' } as any }),
-  },
+  sm: Platform.select({
+    web: { boxShadow: '0px 1px 4px rgba(0,0,0,0.08)' } as any,
+    default: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 2 },
+  })!,
+  md: Platform.select({
+    web: { boxShadow: '0px 4px 12px rgba(0,0,0,0.12)' } as any,
+    default: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 5 },
+  })!,
+  lg: Platform.select({
+    web: { boxShadow: '0px 8px 20px rgba(0,0,0,0.15)' } as any,
+    default: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+  })!,
 }
+
+// useNativeDriver non supporté sur web → utiliser cette constante partout
+export const nativeDriver = Platform.OS !== 'web'
 
 // Polices
 export const Fonts = {

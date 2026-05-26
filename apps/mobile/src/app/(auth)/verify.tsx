@@ -3,14 +3,14 @@ import { View, Text, StyleSheet, Pressable, TextInput, Animated } from 'react-na
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Colors, Typography, Spacing, BorderRadius, Shadow } from '@/constants/theme'
+import { Colors, Typography, Spacing, BorderRadius, Shadow, nativeDriver } from '@/constants/theme'
 import { useAuthStore } from '@/stores/auth.store'
 
 const CODE_LENGTH = 6
 
 export default function VerifyScreen() {
   const router  = useRouter()
-  const { phone, setStatus } = useAuthStore()
+  const { phone, mode, setStatus } = useAuthStore()
   const [code, setCode]     = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError]   = useState('')
@@ -26,8 +26,8 @@ export default function VerifyScreen() {
 
   const animateCell = (index: number) => {
     Animated.sequence([
-      Animated.spring(cellAnims[index], { toValue: 1.2, useNativeDriver: true, damping: 8 }),
-      Animated.spring(cellAnims[index], { toValue: 1, useNativeDriver: true, damping: 12 }),
+      Animated.spring(cellAnims[index], { toValue: 1.2, useNativeDriver: nativeDriver, damping: 8 }),
+      Animated.spring(cellAnims[index], { toValue: 1, useNativeDriver: nativeDriver, damping: 12 }),
     ]).start()
   }
 
@@ -44,8 +44,13 @@ export default function VerifyScreen() {
     setLoading(true)
     setTimeout(() => {
       setLoading(false)
-      setStatus('onboarding')
-      router.replace('/(auth)/onboarding/profile' as any)
+      if (mode === 'login') {
+        setStatus('authenticated')
+        router.replace('/(tabs)' as any)
+      } else {
+        setStatus('onboarding')
+        router.replace('/(auth)/onboarding/profile' as any)
+      }
     }, 900)
   }
 

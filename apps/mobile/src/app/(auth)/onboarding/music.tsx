@@ -3,11 +3,12 @@ import {
   View, Text, StyleSheet, Pressable, ScrollView,
   TextInput, FlatList, Animated, Platform,
 } from 'react-native'
+import { createAudioPlayer, AudioPlayer } from 'expo-audio'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Image } from 'expo-image'
-import { Colors, Typography, Spacing, BorderRadius, Shadow } from '@/constants/theme'
+import { Colors, Typography, Spacing, BorderRadius, Shadow, nativeDriver } from '@/constants/theme'
 import { MUSIC_STYLES } from '@/constants/music-styles'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { OnboardingProgress } from '@/components/ui/onboarding-progress'
@@ -18,13 +19,34 @@ type Step = 'styles' | 'artists' | 'songs'
 const STEP_CONFIG = [
   { key: 'styles'  as Step, label: 'Styles',   max: 2, placeholder: 'Recherche un style...'    },
   { key: 'artists' as Step, label: 'Artistes',  max: 3, placeholder: 'Recherche un artiste...' },
-  { key: 'songs'   as Step, label: 'Chansons',  max: 5, placeholder: 'Titre ou artiste...'     },
+  { key: 'songs'   as Step, label: 'Musiques',  max: 5, placeholder: 'Titre ou artiste...'     },
 ]
 
 // Grille styles → rangées de 3
 const STYLE_ROWS: string[][] = []
 for (let i = 0; i < MUSIC_STYLES.length; i += 3) {
   STYLE_ROWS.push([...MUSIC_STYLES].slice(i, i + 3))
+}
+
+// Deezer chart genre IDs → classification éditoriale stricte (pas de text search)
+// Gazo sera dans le chart 116 (Hip-Hop), jamais dans 132 (Pop) ou 106 (Électro)
+const STYLE_TO_GENRE_ID: Record<string, number> = {
+  'Pop':               132,
+  'Hip-Hop':           116,
+  'Rap':               116,
+  'R&B':               165,
+  'Électro':           106,
+  'Rock':              152,
+  'Variété française': 153,
+  'House':             113,
+  'Metal':             464,
+}
+
+// Styles sans chart Deezer fiable → fallback keyword search
+const STYLE_TO_SEARCH_KEYWORD: Record<string, string> = {
+  'Afrobeats':  'afrobeats',
+  'Reggaeton':  'reggaeton',
+  'K-Pop':      'kpop',
 }
 
 
@@ -40,81 +62,183 @@ export default function OnboardingMusicScreen() {
   const [results, setResults]         = useState<any[]>([])
   const [trending, setTrending]       = useState<{ artists: any[]; songs: any[] }>({ artists: [], songs: [] })
   const [focused, setFocused]         = useState(false)
+  const [playingId, setPlayingId]     = useState<number | null>(null)
 
   const slideAnim = useRef(new Animated.Value(0)).current
+  const soundRef  = useRef<AudioPlayer | null>(null)
 
   const stepIndex   = STEP_CONFIG.findIndex((s) => s.key === step)
   const currentConf = STEP_CONFIG[stepIndex]
 
   const animateIn = () => {
     slideAnim.setValue(30)
-    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 18 }).start()
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: nativeDriver, damping: 18 }).start()
   }
 
-  /* ── Chargement des tendances à l'entrée de chaque étape ── */
+  /* ── Nettoyage audio au démontage ── */
   useEffect(() => {
-    if (step === 'artists') loadTrendingArtists()
-    if (step === 'songs')   loadTrendingSongs()
+    return () => { soundRef.current?.remove() }
+  }, [])
+
+  /* ── Chargement des tendances (artistes + musiques) d'un coup ── */
+  useEffect(() => {
+    if (step === 'artists') loadTrending()
   }, [step])
 
-  const loadTrendingArtists = async () => {
-    try {
-      if (Platform.OS !== 'web') {
-        // Natif : Deezer chart top 5
-        const r = await fetch('https://api.deezer.com/chart/0/artists?limit=5')
-        const d = await r.json()
-        setTrending(t => ({ ...t, artists: (d.data ?? []).map((a: any) => ({ ...a, _source: 'deezer' })) }))
+  // Passe par un proxy CORS sur web (Deezer bloque fetch() depuis les navigateurs)
+  const deezer = async (path: string) => {
+    const url = `https://api.deezer.com/${path}`
+    const proxied = `https://corsproxy.io/?url=${encodeURIComponent(url)}`
+    const r = await fetch(Platform.OS === 'web' ? proxied : url)
+    return r.json()
+  }
+
+  // Stratégie : 1 appel par style → 50 top tracks du genre
+  // Musiques  : top 5 triés par rank (streams), avec deux gardes-fous :
+  //   • max ceil(5/nbStyles) par style → chaque style est représenté
+  //   • max 3 par artiste → un artiste ne monopolise pas
+  //   Les 5 retenus sont triés par rank → ordre naturel streams, pas groupage par style
+  // Artistes  : scoring par nb d'apparitions dans les 50 tracks
+  const loadTrending = async () => {
+    const uniqueStyles = [...new Set(selectedStyles)]
+    const allTracks:  any[]             = []
+    const trackStyle = new Map<number, string>()  // trackId → style d'origine (1ère occurrence)
+
+    for (const style of uniqueStyles) {
+      const genreId = STYLE_TO_GENRE_ID[style]
+      const keyword = STYLE_TO_SEARCH_KEYWORD[style]
+
+      try {
+        let tracks: any[] = []
+        if (genreId) {
+          // Chart éditorial Deezer → classification stricte par genre
+          const d = await deezer(`chart/${genreId}/tracks?limit=50`)
+          tracks = d.data ?? []
+        } else if (keyword) {
+          // Fallback keyword pour K-Pop, Afrobeats, Reggaeton
+          const d = await deezer(`search?q=${encodeURIComponent(keyword)}&type=track&order=RANKING&limit=50`)
+          tracks = d.data ?? []
+        }
+        for (const track of tracks) {
+          allTracks.push(track)
+          if (track.id && !trackStyle.has(track.id)) trackStyle.set(track.id, style)
+        }
+      } catch {}
+    }
+
+    // ── Musiques : top 5 par rank, cap par style + cap par artiste ──
+    const maxPerStyle = Math.ceil(5 / uniqueStyles.length)   // 2 styles → 3 max/style
+    const seenS       = new Set<number>()
+    const artistHits  = new Map<number, number>()
+    const styleHits   = new Map<string,  number>()
+    const songs: any[] = []
+
+    for (const t of [...allTracks].sort((a, b) => (b.rank ?? 0) - (a.rank ?? 0))) {
+      if (!t.id || !t.title)  continue
+      if (seenS.has(t.id))    continue
+      const artistId = t.artist?.id
+      const style    = trackStyle.get(t.id) ?? ''
+      if (artistId && (artistHits.get(artistId) ?? 0) >= 3)         continue
+      if (style    && (styleHits.get(style)     ?? 0) >= maxPerStyle) continue
+
+      seenS.add(t.id)
+      if (artistId) artistHits.set(artistId, (artistHits.get(artistId) ?? 0) + 1)
+      if (style)    styleHits.set(style,     (styleHits.get(style)     ?? 0) + 1)
+
+      songs.push({
+        trackId:        t.id,
+        trackName:      t.title,
+        artistName:     t.artist?.name       ?? '',
+        artworkUrl100:  t.album?.cover_medium ?? '',
+        previewUrl:     t.preview            ?? null,
+        collectionName: t.album?.title       ?? '',
+      })
+      if (songs.length >= 5) break
+    }
+
+    // ── Artistes : score = nb de tracks dans les 50 → plus un artiste domine le genre,
+    //    plus son score est élevé. Complètement indépendant du top 5 musiques.
+    const artistScore = new Map<number, { info: any; score: number }>()
+    for (const track of allTracks) {
+      if (!track.artist?.id) continue
+      const entry = artistScore.get(track.artist.id)
+      if (entry) {
+        entry.score += 1
       } else {
-        // Web (CORS Deezer bloqué) : iTunes fallback
-        const r = await fetch('https://itunes.apple.com/search?term=pop+hits&entity=musicArtist&country=FR&limit=5')
-        const d = await r.json()
-        setTrending(t => ({
-          ...t,
-          artists: (d.results ?? []).map((a: any) => ({
-            id: a.artistId, name: a.artistName,
-            picture_medium: null, nb_fan: null, _source: 'itunes',
-          })),
-        }))
+        artistScore.set(track.artist.id, {
+          info: {
+            id:             track.artist.id,
+            name:           track.artist.name,
+            picture_medium: track.artist.picture_medium ?? null,
+            nb_fan:         null,
+          },
+          score: 1,
+        })
       }
+    }
+
+    const artists = [...artistScore.values()]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(v => v.info)
+
+    setTrending({ artists, songs })
+  }
+
+  /* ── Preview 30s ── */
+  const togglePreview = (trackId: number, previewUrl: string | null) => {
+    if (!previewUrl) return
+
+    // Même morceau → stop
+    if (playingId === trackId) {
+      soundRef.current?.remove()
+      soundRef.current = null
+      setPlayingId(null)
+      return
+    }
+
+    // Nouveau morceau → arrête le précédent
+    soundRef.current?.remove()
+    soundRef.current = null
+    setPlayingId(null)
+
+    try {
+      const player = createAudioPlayer({ uri: previewUrl })
+      player.play()
+      soundRef.current = player
+      setPlayingId(trackId)
+
+      // Auto-stop après 30 secondes (durée max preview Deezer)
+      setTimeout(() => {
+        if (soundRef.current === player) {
+          player.remove()
+          soundRef.current = null
+          setPlayingId(null)
+        }
+      }, 30_000)
     } catch {}
   }
 
-  const loadTrendingSongs = async () => {
-    try {
-      // Apple RSS — marche partout (pas de CORS)
-      const r = await fetch('https://rss.applemarketingtools.com/api/v2/fr/music/most-played/5/songs.json')
-      const d = await r.json()
-      const items: any[] = d.feed?.results ?? []
-      setTrending(t => ({
-        ...t,
-        songs: items.map((s: any) => ({
-          trackId: parseInt(s.id, 10),
-          trackName: s.name,
-          artistName: s.artistName,
-          artworkUrl100: s.artworkUrl100?.replace('100x100', '200x200') ?? '',
-          previewUrl: null,
-          collectionName: '',
-        })),
-      }))
-    } catch {}
+  /* ── Retour en arrière entre étapes ── */
+  const goBack = () => {
+    stopAudio()
+    if (step === 'songs') {
+      setSearch(''); setResults([]); animateIn(); setStep('artists')
+    } else if (step === 'artists') {
+      setSearch(''); setResults([])
+      setTrending({ artists: [], songs: [] }) // reset pour recharger si styles changent
+      animateIn(); setStep('styles')
+    } else {
+      router.canGoBack() ? router.back() : router.replace('/(auth)/onboarding/profile' as any)
+    }
   }
 
   /* ── Recherches ── */
   const searchArtists = async (term: string) => {
     if (!term.trim()) return setResults([])
     try {
-      if (Platform.OS !== 'web') {
-        const r = await fetch(`https://api.deezer.com/search/artist?q=${encodeURIComponent(term)}&limit=15`)
-        const d = await r.json()
-        setResults((d.data ?? []).map((a: any) => ({ ...a, _source: 'deezer' })))
-      } else {
-        const r = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=musicArtist&country=FR&limit=15`)
-        const d = await r.json()
-        setResults((d.results ?? []).map((a: any) => ({
-          id: a.artistId, name: a.artistName,
-          picture_medium: null, nb_fan: null, _source: 'itunes',
-        })))
-      }
+      const d = await deezer(`search/artist?q=${encodeURIComponent(term)}&limit=15`)
+      setResults((d.data ?? []).map((a: any) => ({ ...a, _source: 'deezer' })))
     } catch { setResults([]) }
   }
 
@@ -161,7 +285,14 @@ export default function OnboardingMusicScreen() {
     return selectedSongs.length === 5
   }
 
+  const stopAudio = () => {
+    soundRef.current?.remove()
+    soundRef.current = null
+    setPlayingId(null)
+  }
+
   const handleNext = () => {
+    stopAudio()
     if (step === 'styles')  { setSearch(''); setResults([]); animateIn(); return setStep('artists') }
     if (step === 'artists') { setSearch(''); setResults([]); animateIn(); return setStep('songs') }
     setMusic({
@@ -182,7 +313,7 @@ export default function OnboardingMusicScreen() {
       const rem = step === 'styles'  ? 2 - selectedStyles.length
                 : step === 'artists' ? 3 - selectedArtists.length
                 : 5 - selectedSongs.length
-      const noun = step === 'songs'   ? `chanson${rem > 1 ? 's' : ''}`
+      const noun = step === 'songs'   ? `musique${rem > 1 ? 's' : ''}`
                  : step === 'artists' ? `artiste${rem > 1 ? 's' : ''}`
                  : `style${rem > 1 ? 's' : ''}`
       return `Encore ${rem} ${noun}`
@@ -232,17 +363,29 @@ export default function OnboardingMusicScreen() {
 
   /* ── Render chanson ── */
   const renderSong = (item: any, onPress: () => void) => {
-    const sel = selectedSongs.some((song) => song.itunes_track_id === item.trackId)
+    const sel       = selectedSongs.some((song) => song.itunes_track_id === item.trackId)
+    const isPlaying = playingId === item.trackId
     return (
       <Pressable key={item.trackId} style={[styles.resultRow, sel && styles.resultRowActive]} onPress={onPress}>
-        <View style={styles.coverWrap}>
+        {/* Pochette cliquable pour la preview */}
+        <Pressable style={styles.coverWrap} onPress={() => togglePreview(item.trackId, item.previewUrl)}>
           <Image source={{ uri: item.artworkUrl100 }} style={styles.cover} contentFit="cover" />
-          {sel && (
+          {sel && !isPlaying && (
             <View style={styles.coverCheck}>
               <Text style={styles.artistBadgeText}>✓</Text>
             </View>
           )}
-        </View>
+          {isPlaying && (
+            <View style={styles.coverPlaying}>
+              <Text style={styles.coverPlayingIcon}>▐▐</Text>
+            </View>
+          )}
+          {!sel && !isPlaying && item.previewUrl && (
+            <View style={styles.coverPlayHint}>
+              <Text style={styles.coverPlayHintIcon}>▶</Text>
+            </View>
+          )}
+        </Pressable>
         <View style={styles.resultInfo}>
           <Text style={[styles.resultName, sel && styles.resultNameActive]} numberOfLines={1}>{item.trackName}</Text>
           <Text style={styles.resultSub} numberOfLines={1}>{item.artistName}</Text>
@@ -254,47 +397,12 @@ export default function OnboardingMusicScreen() {
     )
   }
 
-  /* ── Barre de recherche ── */
-  const SearchBar = ({ onChangeText }: { onChangeText: (t: string) => void; step: Step }) => (
-    <View style={[styles.searchOuter, focused && styles.searchOuterFocused]}>
-      {focused && (
-        <LinearGradient
-          colors={['#FF6B9D', '#FF4757']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={styles.searchGradientBorder}
-        />
-      )}
-      <View style={styles.searchInner}>
-        {/* Loupe dessinée */}
-        <View style={styles.lupeWrap}>
-          <View style={styles.lupeCircle} />
-          <View style={[styles.lupeHandle, focused && styles.lupeHandleFocused]} />
-        </View>
-        <TextInput
-          style={[styles.searchInput, Platform.OS === 'web' && { outlineStyle: 'none' as any }]}
-          value={search}
-          onChangeText={(t) => { setSearch(t); onChangeText(t) }}
-          placeholder={currentConf.placeholder}
-          placeholderTextColor={focused ? '#FFACC7' : Colors.gray[300]}
-          autoFocus
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
-        {search.length > 0 && (
-          <Pressable style={styles.clearBtn} onPress={() => { setSearch(''); setResults([]) }}>
-            <Text style={styles.clearBtnText}>✕</Text>
-          </Pressable>
-        )}
-      </View>
-    </View>
-  )
-
   return (
     <View style={styles.container}>
       {/* ── Header ── */}
       <LinearGradient colors={['#FF6B9D', '#FF4757']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.header}>
         <SafeAreaView>
-          <OnboardingProgress step={2} total={5} light />
+          <OnboardingProgress step={2} total={5} light onBack={goBack} />
           <View style={styles.headerMeta}>
             <Text style={styles.headerTitle}>Tes goûts musicaux</Text>
             <View style={styles.tabs}>
@@ -305,7 +413,7 @@ export default function OnboardingMusicScreen() {
                 </View>
               ))}
             </View>
-            <Text style={styles.headerCount}>{countText()} sélectionné{step === 'songs' ? 'es' : 's'}</Text>
+            <Text style={styles.headerCount}>{countText()} sélectionné{step === 'styles' ? 's' : step === 'artists' ? 's' : 'es'}</Text>
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -356,8 +464,36 @@ export default function OnboardingMusicScreen() {
       {/* ── ARTISTES ── */}
       {step === 'artists' && (
         <Animated.View style={[styles.flex, { transform: [{ translateY: slideAnim }] }]}>
-          {/* Barre de recherche */}
-          <SearchBar onChangeText={searchArtists} step="artists" />
+          {/* Barre de recherche — artistes */}
+          <View style={styles.searchWrapper}>
+            <View style={[styles.searchOuter, focused && styles.searchOuterFocused]}>
+              {focused && (
+                <LinearGradient colors={['#FF6B9D', '#FF4757']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.searchGradientBorder} />
+              )}
+              <View style={styles.searchInner}>
+                <View style={styles.lupeWrap}>
+                  <View style={styles.lupeCircle} />
+                  <View style={[styles.lupeHandle, focused && styles.lupeHandleFocused]} />
+                </View>
+                <TextInput
+                  style={[styles.searchInput, Platform.OS === 'web' && { outlineStyle: 'none' as any }]}
+                  value={search}
+                  onChangeText={(t) => { setSearch(t); searchArtists(t) }}
+                  placeholder={currentConf.placeholder}
+                  placeholderTextColor={focused ? '#FFACC7' : Colors.gray[300]}
+                  autoFocus
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                />
+                {search.length > 0 && (
+                  <Pressable style={styles.clearBtn} onPress={() => { setSearch(''); setResults([]) }}>
+                    <Text style={styles.clearBtnText}>✕</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+            <Text style={styles.searchHint}>Recherche libre · tous les artistes Deezer</Text>
+          </View>
 
           {/* Tags sélectionnés */}
           {selectedArtists.length > 0 && (
@@ -378,7 +514,7 @@ export default function OnboardingMusicScreen() {
               search.length === 0 && trending.artists.length > 0
                 ? <View style={styles.sectionHeader}>
                     <View style={styles.sectionDot} />
-                    <Text style={styles.sectionTitle}>Tendances du moment</Text>
+                    <Text style={styles.sectionTitle}>Top 5 · {selectedStyles.join(' & ')}</Text>
                   </View>
                 : null
             }
@@ -395,8 +531,36 @@ export default function OnboardingMusicScreen() {
       {/* ── CHANSONS ── */}
       {step === 'songs' && (
         <Animated.View style={[styles.flex, { transform: [{ translateY: slideAnim }] }]}>
-          {/* Barre de recherche */}
-          <SearchBar onChangeText={searchSongs} step="songs" />
+          {/* Barre de recherche — musiques */}
+          <View style={styles.searchWrapper}>
+            <View style={[styles.searchOuter, focused && styles.searchOuterFocused]}>
+              {focused && (
+                <LinearGradient colors={['#FF6B9D', '#FF4757']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.searchGradientBorder} />
+              )}
+              <View style={styles.searchInner}>
+                <View style={styles.lupeWrap}>
+                  <View style={styles.lupeCircle} />
+                  <View style={[styles.lupeHandle, focused && styles.lupeHandleFocused]} />
+                </View>
+                <TextInput
+                  style={[styles.searchInput, Platform.OS === 'web' && { outlineStyle: 'none' as any }]}
+                  value={search}
+                  onChangeText={(t) => { setSearch(t); searchSongs(t) }}
+                  placeholder={currentConf.placeholder}
+                  placeholderTextColor={focused ? '#FFACC7' : Colors.gray[300]}
+                  autoFocus
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                />
+                {search.length > 0 && (
+                  <Pressable style={styles.clearBtn} onPress={() => { setSearch(''); setResults([]) }}>
+                    <Text style={styles.clearBtnText}>✕</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+            <Text style={styles.searchHint}>Recherche libre · toutes les musiques iTunes</Text>
+          </View>
 
           {/* Chansons sélectionnées */}
           {selectedSongs.length > 0 && (
@@ -418,14 +582,14 @@ export default function OnboardingMusicScreen() {
               search.length === 0 && trending.songs.length > 0
                 ? <View style={styles.sectionHeader}>
                     <View style={styles.sectionDot} />
-                    <Text style={styles.sectionTitle}>Top 5 en France</Text>
+                    <Text style={styles.sectionTitle}>Top 5 · {selectedStyles.join(' & ')}</Text>
                   </View>
                 : null
             }
             renderItem={({ item }) => renderSong(item, () => toggleSong(item))}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
-                {search.length > 0 ? 'Aucun résultat' : 'Tape le titre d\'une chanson'}
+                {search.length > 0 ? 'Aucun résultat' : 'Tape le titre d\'une musique'}
               </Text>
             }
           />
@@ -487,19 +651,26 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: BorderRadius.lg,
     borderWidth: 2,
+    borderColor: Colors.gray[200],
+    backgroundColor: Colors.gray[50],
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     paddingHorizontal: 6,
     ...Shadow.sm,
   },
-  chipActive: { borderColor: Colors.love.primary },
+  chipActive: { borderColor: Colors.love.primary, backgroundColor: 'transparent' },
   chipText: { fontSize: 13, fontWeight: '700', textAlign: 'center', color: Colors.gray[600] },
   chipTextActive: { color: Colors.white, fontWeight: '800' },
   chipMultiLine: { alignItems: 'center', justifyContent: 'center', gap: 1 },
   chipPlaceholder: { flex: 1 },
 
   /* ── Barre de recherche ── */
+  searchWrapper: { marginBottom: Spacing.xs },
+  searchHint: {
+    fontSize: 11, color: Colors.gray[300], textAlign: 'center',
+    marginTop: 5, fontStyle: 'italic',
+  },
   searchOuter: {
     marginHorizontal: Spacing.base,
     marginTop: Spacing.base,
@@ -539,7 +710,8 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-45deg' }],
   },
   lupeHandleFocused: { backgroundColor: Colors.love.primary },
-  searchInput: { flex: 1, fontSize: Typography.base, color: Colors.black, fontWeight: '500' },
+  // fontSize ≥ 16 sur iOS pour désactiver l'auto-zoom au focus
+  searchInput: { flex: 1, fontSize: Platform.OS === 'ios' ? 16 : Typography.base, color: Colors.black, fontWeight: '500' },
   clearBtn: {
     width: 22, height: 22, borderRadius: 11,
     backgroundColor: Colors.gray[200],
@@ -600,6 +772,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,75,87,0.6)',
     alignItems: 'center', justifyContent: 'center',
   },
+  coverPlaying: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(255,75,87,0.75)',
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: BorderRadius.md,
+  },
+  coverPlayingIcon: { fontSize: 11, color: Colors.white, fontWeight: '800', letterSpacing: 2 },
+  coverPlayHint: {
+    position: 'absolute', bottom: 3, right: 3,
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  coverPlayHintIcon: { fontSize: 7, color: Colors.white, fontWeight: '800', marginLeft: 1 },
 
   resultInfo: { flex: 1 },
   resultName: { fontSize: Typography.sm, fontWeight: '700', color: Colors.black },

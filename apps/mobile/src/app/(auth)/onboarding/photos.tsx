@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as ImagePicker from 'expo-image-picker'
 import { Image } from 'expo-image'
-import { Colors, Typography, Spacing, BorderRadius, Shadow } from '@/constants/theme'
+import { Colors, Typography, Spacing, BorderRadius, Shadow, nativeDriver } from '@/constants/theme'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { OnboardingProgress } from '@/components/ui/onboarding-progress'
@@ -21,13 +21,13 @@ export default function OnboardingPhotosScreen() {
   const btnAnim = useRef(new Animated.Value(0.95)).current
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start()
+    Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: nativeDriver }).start()
   }, [])
 
   useEffect(() => {
     Animated.spring(btnAnim, {
       toValue: photos.length >= MIN_PHOTOS ? 1 : 0.95,
-      useNativeDriver: true,
+      useNativeDriver: nativeDriver,
       damping: 12,
     }).start()
   }, [photos.length])

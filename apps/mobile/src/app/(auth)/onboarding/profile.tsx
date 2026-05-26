@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, TextInput, ScrollView, Animated } fr
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Colors, Typography, Spacing, BorderRadius, Shadow } from '@/constants/theme'
+import { Colors, Typography, Spacing, BorderRadius, Shadow, nativeDriver } from '@/constants/theme'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { Gender } from '@/types/user.types'
 import { OnboardingProgress } from '@/components/ui/onboarding-progress'
@@ -36,8 +36,8 @@ export default function OnboardingProfileScreen() {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 16 }),
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 400, useNativeDriver: nativeDriver }),
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: nativeDriver, damping: 16 }),
     ]).start()
   }, [])
 

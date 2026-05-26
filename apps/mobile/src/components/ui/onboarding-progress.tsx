@@ -2,13 +2,13 @@ import { View, Text, StyleSheet, Pressable } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Colors, Spacing, BorderRadius } from '@/constants/theme'
 
-type Props = { step: number; total: number; light?: boolean }
+type Props = { step: number; total: number; light?: boolean; onBack?: () => void }
 
-export function OnboardingProgress({ step, total, light = false }: Props) {
+export function OnboardingProgress({ step, total, light = false, onBack }: Props) {
   const router = useRouter()
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => router.back()} style={styles.back}>
+      <Pressable onPress={() => onBack ? onBack() : router.back()} style={styles.back}>
         <Text style={[styles.backText, light && styles.backTextLight]}>←</Text>
       </Pressable>
       <View style={styles.track}>

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import Svg, { Path, Circle } from 'react-native-svg'
-import { Colors, Typography, Spacing, BorderRadius, Shadow } from '@/constants/theme'
+import { Colors, Typography, Spacing, BorderRadius, Shadow, nativeDriver } from '@/constants/theme'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { ConnectionType } from '@/types/user.types'
 import { OnboardingProgress } from '@/components/ui/onboarding-progress'
@@ -89,14 +89,14 @@ export default function OnboardingConnectionScreen() {
   const scaleAnims = useRef(OPTIONS.map(() => new Animated.Value(1))).current
 
   useEffect(() => {
-    Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: true }).start()
+    Animated.timing(fadeAnim, { toValue: 1, duration: 350, useNativeDriver: nativeDriver }).start()
   }, [])
 
   const handleSelect = (key: ConnectionType, index: number) => {
     setSelected(key)
     Animated.sequence([
-      Animated.spring(scaleAnims[index], { toValue: 0.96, useNativeDriver: true, damping: 10 }),
-      Animated.spring(scaleAnims[index], { toValue: 1,    useNativeDriver: true, damping: 14 }),
+      Animated.spring(scaleAnims[index], { toValue: 0.96, useNativeDriver: nativeDriver, damping: 10 }),
+      Animated.spring(scaleAnims[index], { toValue: 1,    useNativeDriver: nativeDriver, damping: 14 }),
     ]).start()
   }
 

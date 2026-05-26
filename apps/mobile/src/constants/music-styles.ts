@@ -12,7 +12,7 @@ export const MUSIC_STYLES = [
   'Variété française',
   'Afrobeats',
   'Reggaeton',
-  'Indie',
+  'House',
   'Metal',
   'K-Pop',
 ] as const

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, TextInput, KeyboardAvoidingView, Pla
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { Colors, Typography, Spacing, BorderRadius, Shadow } from '@/constants/theme'
+import { Colors, Typography, Spacing, BorderRadius, Shadow, nativeDriver } from '@/constants/theme'
 import { useAuthStore } from '@/stores/auth.store'
 
 export default function PhoneScreen() {
@@ -24,13 +24,13 @@ export default function PhoneScreen() {
 
   useEffect(() => {
     Animated.stagger(150, [
-      Animated.spring(inputAnim, { toValue: 1, useNativeDriver: true, damping: 14 }),
-      Animated.spring(btnAnim,   { toValue: 1, useNativeDriver: true, damping: 14 }),
+      Animated.spring(inputAnim, { toValue: 1, useNativeDriver: nativeDriver, damping: 14 }),
+      Animated.spring(btnAnim,   { toValue: 1, useNativeDriver: nativeDriver, damping: 14 }),
     ]).start()
   }, [])
 
   useEffect(() => {
-    Animated.spring(btnAnim, { toValue: isValid ? 1 : 0.95, useNativeDriver: true, damping: 12 }).start()
+    Animated.spring(btnAnim, { toValue: isValid ? 1 : 0.95, useNativeDriver: nativeDriver, damping: 12 }).start()
   }, [isValid])
 
   const handleContinue = async () => {
