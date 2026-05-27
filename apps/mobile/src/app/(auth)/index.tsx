@@ -1,11 +1,90 @@
 import { useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, Pressable, Animated, Platform } from 'react-native'
+import { View, Text, StyleSheet, Pressable, Animated } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { LinearGradient } from 'expo-linear-gradient'
-import { Colors, Typography, Spacing, BorderRadius, Shadow, nativeDriver } from '@/constants/theme'
-import { HearMeLogo } from '@/components/ui/logo'
+import Svg, {
+  Path, Rect, Defs,
+  LinearGradient as SvgGrad, Stop,
+  ClipPath, G,
+} from 'react-native-svg'
+import { Typography, Spacing, BorderRadius, nativeDriver } from '@/constants/theme'
 import { useAuthStore } from '@/stores/auth.store'
+
+/*
+  Cœur tracé depuis l'image de référence :
+  deux demi-cercles en haut (lobes ronds) + corps plein + pointe basse
+  Point le plus large à mi-hauteur, lobes hauts et bombés
+*/
+const HEART_PATH = [
+  'M50,90',
+  'C83,75 96,60 96,50',
+  'C96,25 82,8 67,8',
+  'C58,8 50,20 50,28',
+  'C50,20 42,8 33,8',
+  'C18,8 4,25 4,50',
+  'C4,60 17,75 50,90',
+  'Z',
+].join(' ')
+
+const BARS = [
+  { x: 13, h: 30, color: '#FB7185' },
+  { x: 29, h: 56, color: '#F472B6' },
+  { x: 45, h: 70, color: '#E879F9' },
+  { x: 61, h: 56, color: '#F472B6' },
+  { x: 77, h: 30, color: '#FB7185' },
+]
+const BAR_BASE = 86
+
+/**
+ * Logo HearMe — musique × amour
+ * Barres d'égaliseur clippées dans un cœur → la musique prend la forme de l'amour
+ */
+function HeartEqualizerLogo({ size = 130 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      <Defs>
+        {/* Masque = forme du cœur */}
+        <ClipPath id="hm-clip">
+          <Path d={HEART_PATH} />
+        </ClipPath>
+
+        {/* Dégradé vertical pour chaque barre : plein en haut, fondu en bas */}
+        {BARS.map((b, i) => (
+          <SvgGrad key={i} id={`bg${i}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0"   stopColor={b.color} stopOpacity="1"    />
+            <Stop offset="1"   stopColor={b.color} stopOpacity="0.35" />
+          </SvgGrad>
+        ))}
+      </Defs>
+
+      {/* Barres clippées au cœur */}
+      <G clipPath="url(#hm-clip)">
+        {BARS.map((b, i) => (
+          <Rect
+            key={i}
+            x={b.x}
+            y={BAR_BASE - b.h}
+            width={10}
+            height={b.h + 12}   /* dépasse légèrement pour remplir la pointe du cœur */
+            rx={5}
+            fill={`url(#bg${i})`}
+          />
+        ))}
+      </G>
+
+      {/* Contour du cœur par-dessus — fin et lumineux */}
+      <Path
+        d={HEART_PATH}
+        fill="none"
+        stroke="#FCA5A5"
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  )
+}
+
+/* ─────────────────────────────────────────────── */
 
 export default function WelcomeScreen() {
   const router  = useRouter()
@@ -15,8 +94,8 @@ export default function WelcomeScreen() {
   const btnAnim   = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
-    Animated.stagger(140, [
-      Animated.spring(logoAnim,  { toValue: 1, useNativeDriver: nativeDriver, damping: 14 }),
+    Animated.stagger(160, [
+      Animated.spring(logoAnim,  { toValue: 1, useNativeDriver: nativeDriver, damping: 12 }),
       Animated.spring(titleAnim, { toValue: 1, useNativeDriver: nativeDriver, damping: 15 }),
       Animated.spring(btnAnim,   { toValue: 1, useNativeDriver: nativeDriver, damping: 15 }),
     ]).start()
@@ -24,46 +103,31 @@ export default function WelcomeScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#FF6B9D', '#FF4757', '#FF6B2D']}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      {/* Cercle déco en bas */}
-      <View style={styles.decoBubbleLarge} />
-      <View style={styles.decoBubbleSmall} />
-
       <SafeAreaView style={styles.safeArea}>
+
         {/* ── Hero ── */}
         <View style={styles.hero}>
-          {/* Logo SVG avec halo blanc */}
+
           <Animated.View
-            style={[
-              styles.logoWrap,
-              {
-                opacity: logoAnim,
-                transform: [
-                  { scale: logoAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) },
-                  { translateY: logoAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) },
-                ],
-              },
-            ]}>
-            {/* Halo blanc derrière le logo */}
-            <View style={styles.logoHalo} />
-            <HearMeLogo size={110} variant="color" />
+            style={{
+              opacity: logoAnim,
+              transform: [
+                { scale: logoAnim.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) },
+                { translateY: logoAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) },
+              ],
+            }}>
+            <HeartEqualizerLogo size={150} />
           </Animated.View>
 
-          {/* Nom de l'app + tagline */}
           <Animated.View
             style={{
               opacity: titleAnim,
-              transform: [{ translateY: titleAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+              transform: [{ translateY: titleAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
               alignItems: 'center',
               gap: Spacing.sm,
             }}>
-            <Text style={styles.appName}>Hear Me</Text>
+            <Text style={styles.appName}>HEAR ME</Text>
+            <View style={styles.divider} />
             <Text style={styles.tagline}>
               Rencontre des personnes qui{'\n'}partagent tes goûts musicaux
             </Text>
@@ -76,9 +140,10 @@ export default function WelcomeScreen() {
             styles.buttons,
             {
               opacity: btnAnim,
-              transform: [{ translateY: btnAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+              transform: [{ translateY: btnAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
             },
           ]}>
+
           <Pressable
             style={({ pressed }) => [styles.btnPrimary, pressed && styles.pressed]}
             onPress={() => { setMode('register'); router.push('/(auth)/phone' as any) }}>
@@ -98,91 +163,75 @@ export default function WelcomeScreen() {
             <Text style={styles.legalLink}>Politique de confidentialité</Text>
           </Text>
         </Animated.View>
+
       </SafeAreaView>
     </View>
   )
 }
 
+const ACCENT = '#E879F9'   // mauve électrique — musique + amour
+
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  safeArea: { flex: 1, justifyContent: 'space-between', paddingHorizontal: Spacing.base, paddingBottom: Spacing.xl },
+  /** Fond sombre concert, légèrement violacé = nuit musicale */
+  container: { flex: 1, backgroundColor: '#1C0833' },
+  safeArea:  { flex: 1, justifyContent: 'space-between', paddingHorizontal: Spacing.base, paddingBottom: Spacing.xl },
 
-  /* Bulles décoratives de fond */
-  decoBubbleLarge: {
-    position: 'absolute',
-    bottom: -100,
-    left: -80,
-    width: 340,
-    height: 340,
-    borderRadius: 170,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-  },
-  decoBubbleSmall: {
-    position: 'absolute',
-    top: 60,
-    right: -60,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing['2xl'] },
 
-  /* Hero centré */
-  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.xl },
-
-  /* Conteneur logo */
-  logoWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  logoHalo: {
-    position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-  },
-
-  /* Texte */
   appName: {
-    fontSize: 54,
+    fontSize: 44,
     fontWeight: '800',
-    color: Colors.white,
-    letterSpacing: -2,
-    ...Platform.select({
-      web:     { textShadow: '0px 2px 8px rgba(0,0,0,0.15)' } as any,
-      default: {
-        textShadowColor: 'rgba(0,0,0,0.15)',
-        textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 8,
-      },
-    }),
-  },
-  tagline: {
-    fontSize: Typography.base,
-    color: 'rgba(255,255,255,0.88)',
-    textAlign: 'center',
-    lineHeight: 24,
-    fontWeight: '500',
+    color: '#FFFFFF',
+    letterSpacing: 12,
   },
 
-  /* Boutons */
+  /** Fine ligne rose — ponctuation entre titre et tagline */
+  divider: {
+    width: 36,
+    height: 1.5,
+    backgroundColor: '#F9A8D4',
+    opacity: 0.8,
+  },
+
+  tagline: {
+    fontSize: Typography.sm,
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center',
+    lineHeight: 22,
+    fontWeight: '400',
+    letterSpacing: 0.3,
+  },
+
   buttons: { gap: Spacing.md },
+
   btnPrimary: {
-    backgroundColor: Colors.white,
     borderRadius: BorderRadius.full,
     paddingVertical: 17,
     alignItems: 'center',
-    ...Shadow.md,
+    backgroundColor: ACCENT,
   },
-  btnPrimaryText: { fontSize: Typography.md, fontWeight: '800', color: Colors.love.secondary },
+  btnPrimaryText: {
+    fontSize: Typography.base,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
+
   btnSecondary: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
     borderRadius: BorderRadius.full,
     paddingVertical: 17,
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderWidth: 1,
+    borderColor: `${ACCENT}66`,
   },
-  btnSecondaryText: { fontSize: Typography.md, fontWeight: '600', color: Colors.white },
-  pressed: { opacity: 0.82, transform: [{ scale: 0.97 }] },
-  legal: { textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 17, marginTop: Spacing.xs },
-  legalLink: { textDecorationLine: 'underline', fontWeight: '600' },
+  btnSecondaryText: {
+    fontSize: Typography.base,
+    fontWeight: '500',
+    color: `${ACCENT}CC`,
+    letterSpacing: 0.3,
+  },
+
+  pressed:   { opacity: 0.80, transform: [{ scale: 0.97 }] },
+  legal:     { textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.28)', lineHeight: 16, marginTop: Spacing.xs },
+  legalLink: { textDecorationLine: 'underline', color: 'rgba(255,255,255,0.42)' },
 })

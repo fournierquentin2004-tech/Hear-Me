@@ -18,6 +18,9 @@ const GENDERS: { key: Gender; label: string }[] = [
   { key: 'autre',       label: 'Autres'    },
 ]
 
+const ALL_GENDER_KEYS = GENDERS.map((g) => g.key)
+const isAllSelected   = (arr: Gender[]) => ALL_GENDER_KEYS.every((k) => arr.includes(k))
+
 export default function OnboardingPreferencesScreen() {
   const router = useRouter()
   const { connectionType, setPreferences } = useOnboardingStore()
@@ -41,6 +44,11 @@ export default function OnboardingPreferencesScreen() {
 
   const toggleGender = (arr: Gender[], set: (v: Gender[]) => void, g: Gender) => {
     arr.includes(g) ? set(arr.filter((x) => x !== g)) : set([...arr, g])
+  }
+
+  // "Tous" : sélectionne tout le monde — cliquer à nouveau désélectionne tout
+  const toggleAll = (arr: Gender[], set: (v: Gender[]) => void) => {
+    isAllSelected(arr) ? set([]) : set([...ALL_GENDER_KEYS])
   }
 
   const handleNext = () => {
@@ -108,6 +116,13 @@ export default function OnboardingPreferencesScreen() {
                     </Text>
                   </Pressable>
                 ))}
+                <Pressable
+                  style={[styles.chip, isAllSelected(loveGender) && styles.chipLoveActive]}
+                  onPress={() => toggleAll(loveGender, setLoveGender)}>
+                  <Text style={[styles.chipText, isAllSelected(loveGender) && styles.chipTextLoveActive]}>
+                    Tous
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
@@ -129,7 +144,7 @@ export default function OnboardingPreferencesScreen() {
               <RangeSlider
                 min={0} max={200}
                 low={loveDistMin} high={loveDistMax}
-                step={5} unit=" km"
+                step={1} unit=" km"
                 color={Colors.love.primary}
                 onValueChange={(lo, hi) => { setLoveDistMin(lo); setLoveDistMax(hi) }}
               />
@@ -159,6 +174,13 @@ export default function OnboardingPreferencesScreen() {
                     </Text>
                   </Pressable>
                 ))}
+                <Pressable
+                  style={[styles.chip, isAllSelected(friendGender) && styles.chipFriendActive]}
+                  onPress={() => toggleAll(friendGender, setFriendGender)}>
+                  <Text style={[styles.chipText, isAllSelected(friendGender) && styles.chipTextFriendActive]}>
+                    Tous
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
@@ -180,7 +202,7 @@ export default function OnboardingPreferencesScreen() {
               <RangeSlider
                 min={0} max={200}
                 low={friendDistMin} high={friendDistMax}
-                step={5} unit=" km"
+                step={1} unit=" km"
                 color={Colors.friendship.primary}
                 onValueChange={(lo, hi) => { setFriendDistMin(lo); setFriendDistMax(hi) }}
               />
