@@ -10,13 +10,14 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.hearme.app",
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/icon.png",
       "infoPlist": {
         "NSCameraUsageDescription": "Hear Me a besoin de la caméra pour prendre des photos de profil.",
         "NSPhotoLibraryUsageDescription": "Hear Me a besoin d'accéder à ta galerie pour importer des photos de profil.",
         "NSLocationWhenInUseUsageDescription": "Hear Me utilise ta position pour détecter ta ville et trouver des profils près de toi.",
         "NSMicrophoneUsageDescription": "Hear Me a besoin du microphone pour la vérification de compte en vidéo.",
-        "NSFaceIDUsageDescription": "Hear Me utilise Face ID pour sécuriser ta connexion."
+        "NSFaceIDUsageDescription": "Hear Me utilise Face ID pour sécuriser ta connexion.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -36,7 +37,10 @@
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.POST_NOTIFICATIONS",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "web": {
